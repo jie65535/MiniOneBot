@@ -1,29 +1,73 @@
 package top.jie65535.minionebot;
 
-import org.jetbrains.annotations.NotNull;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MiniOneBotWsClient {
-
-    private final String wsUrl;
+public class MiniOneBotWsClient extends WebSocketClient implements WsStream {
     private final Logger logger;
 
-    private final Timer wsConnectDaemon;
+    private MiniOneBotWsClient(URI serverUri, Map<String, String> headers, Logger logger) {
+        super(serverUri, headers);
 
-    public MiniOneBotWsClient(@NotNull String wsUrl, @NotNull Logger logger) {
-        this.wsUrl = wsUrl;
         this.logger = logger;
-
-        wsConnectDaemon = new Timer("WsClientDaemon", true);
-        wsConnectDaemon.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                logger.debug("Timer...");
-            }
-        }, 60_000);
     }
 
+    public static MiniOneBotWsClient create(URI serverUri, String token, Logger logger) {
+        var headers = new HashMap<String, String>();
+        headers.put("Authorization", "Bearer " + token);
+        var client = new MiniOneBotWsClient(serverUri, headers, logger);
+        var wsClientDaemon = new Timer("WsClientDaemon", true);
+        wsClientDaemon.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                if (!client.isOpen()) {
+                    logger.debug("Try connect...");
+                    client.connect();
+                }
+            }
+        }, 5_000);
+        return client;
+    }
+
+    private WsMessageHandler callback;
+
+    @Override
+    public void subscribe(WsMessageHandler callback) {
+        this.callback = callback;
+    }
+
+    @Override
+    public void onOpen(ServerHandshake handshakedata) {
+        logger.info("onOpen: statusMessage={}", handshakedata.getHttpStatusMessage());
+    }
+
+    @Override
+    public void onMessage(String message) {
+        logger.info("onMessage: {}", message);
+        callback.onMessage(message);
+    }
+
+    @Override
+    public void onClose(int code, String reason, boolean remote) {
+        logger.info("onClose: code={} reason={} isRemote={}", code, reason, remote);
+    }
+
+    @Override
+    public void onError(Exception ex) {
+        logger.error("onError:", ex);
+    }
+
+    @Override
+    public void send(String message) {
+        if (isOpen()) {
+            super.send(message);
+        }
+    }
 }

@@ -1,11 +1,9 @@
 package top.jie65535.minionebot;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import io.javalin.Javalin;
 
-import java.util.Map;
-import java.util.Objects;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Scanner;
 
 public class Main {
@@ -28,10 +26,15 @@ public class Main {
 //        System.out.println(Objects.equals(dataMap.get("type"), "text"));
 //        System.out.println((String)dataMap.get("data"));
 
+
         Javalin app = Javalin.create().start(7070);
-        var bot = new MiniOneBot(app);
+        var bot = new MiniOneBot(app, "HelloOneBot");
         bot.startWsServer("/openchat");
-        bot.startWsClient("ws://localhost/onebot");
+        try {
+            bot.startWsClient(new URI("ws://localhost:8080"));
+        } catch (URISyntaxException ignored) {
+            System.out.println("Uri Syntax error!");
+        }
         bot.subscribeGroupMessageEvent(event -> System.out.println(event.message));
         bot.subscribeGuildChannelMessageEvent(event -> System.out.println(event.message));
 
