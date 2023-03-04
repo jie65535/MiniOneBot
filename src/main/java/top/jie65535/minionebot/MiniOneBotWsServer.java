@@ -5,10 +5,12 @@ import io.javalin.websocket.*;
 import org.eclipse.jetty.websocket.api.CloseStatus;
 import org.slf4j.Logger;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class MiniOneBotWsServer implements WsStream {
+public class MiniOneBotWsServer implements WsStream, Closeable {
 
     private final String token;
     private final Logger logger;
@@ -70,31 +72,6 @@ public class MiniOneBotWsServer implements WsStream {
         logger.debug("onMessage: {}", ctx.message());
 
         callback.onMessage(ctx.message());
-//        var map = JsonUtils.decode(ctx.message(), Map.class);
-//        // 消息事件上报
-//        if (Objects.equals(map.get("post_type"), "message")) {
-//            // 群消息上报 https://docs.go-cqhttp.org/event/#%E7%BE%A4%E6%B6%88%E6%81%AF
-//            if (Objects.equals(map.get("message_type"), "group")
-//                    && Objects.equals(map.get("sub_type"), "normal")) {
-//                // 检查群号
-//                var groupId = (Long)map.get("group_id");
-//                if (Objects.equals(config.groupId, groupId)) {
-////                    var message = (List<Map<?, ?>>)map.get("message");
-//                    var rawMessage = map.get("raw_message").toString();
-//
-//                    // 发送者信息 https://docs.go-cqhttp.org/reference/data_struct.html#post-message-messagesender
-//                    var sender = (Map<?, ?>) map.get("sender");
-//                    var senderId = sender.get("user_id").toString();
-//                    var senderNickname = sender.get("nickname").toString();
-//                    var senderCard = sender.get("card").toString();
-//                    chatSystem.broadcastChatMessage(config.groupToGameFormat
-//                            .replace("{card}", senderCard)
-//                            .replace("{id}", senderId)
-//                            .replace("{nickname}", senderNickname)
-//                            .replace("{message}", rawMessage));
-//                }
-//            }
-//        }
     }
 
     private WsMessageHandler callback;
@@ -112,5 +89,16 @@ public class MiniOneBotWsServer implements WsStream {
                 ctx.send(message);
             }
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (connections.isEmpty()) return;
+        for (var ctx : connections.keySet()) {
+            if (ctx.session.isOpen()) {
+                ctx.session.close(1001, "Service stopped");
+            }
+        }
+        connections.clear();
     }
 }

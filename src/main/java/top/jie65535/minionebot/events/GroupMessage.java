@@ -1,5 +1,12 @@
 package top.jie65535.minionebot.events;
 
-public class GroupMessage {
-    public String message;
+public record GroupMessage(
+        long groupId,
+        String message,
+        long senderId,
+        String senderCardOrNickname,
+        String senderLevel,
+        String senderRole,
+        String senderTitle
+) {
 }
